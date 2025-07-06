@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HTMLForge - Forge HTML applications with AI assistance. Create and modify single-page web applications using DeepSeek AI.">
+    <title>HTMLForge (Development)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <!-- Header Section -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">HTMLForge</h1>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Forge HTML applications with AI assistance</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="darkModeToggle" class="p-2 rounded-md text-gray-400 hover:text-gray-500 dark:text-gray-300 dark:hover:text-gray-200">
+                        <i data-lucide="moon" class="w-5 h-5"></i>
+                    </button>
+                    <div class="flex items-center space-x-2">
+                        <span id="connectionStatus" class="flex items-center space-x-1">
+                            <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                            <span class="text-sm text-gray-500 dark:text-gray-400">Disconnected</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- API Key Input -->
+            <div class="pb-6">
+                <div class="flex items-center space-x-4">
+                    <div class="flex-1 relative">
+                        <label for="apiKey" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">DeepSeek API Key</label>
+                        <div class="relative">
+                            <input type="password" id="apiKey" placeholder="Enter your DeepSeek API key" 
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white pr-10">
+                            <button id="toggleApiKey" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-200">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button id="testConnection" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
+                        Test Connection
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="h-[calc(100vh-200px)] px-4 sm:px-6 lg:px-8 py-8">
+        <div class="h-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Left Panel: Input and Stream (4 columns on large screens) -->
+            <div class="lg:col-span-4 flex flex-col space-y-6 h-full">
+                <!-- Input Tab Navigation -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex-shrink-0">
+                    <div class="border-b border-gray-200 dark:border-gray-700">
+                        <nav class="flex space-x-8 px-6" aria-label="Tabs">
+                            <button id="createTab" class="tab-button border-b-2 border-blue-500 text-blue-600 dark:text-blue-400 py-4 px-1 text-sm font-medium">
+                                <i data-lucide="plus-circle" class="w-4 h-4 inline mr-2"></i>
+                                Create New
+                            </button>
+                            <button id="modifyTab" class="tab-button border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 py-4 px-1 text-sm font-medium">
+                                <i data-lucide="edit" class="w-4 h-4 inline mr-2"></i>
+                                Modify Existing
+                            </button>
+                        </nav>
+                    </div>
+
+                    <!-- Create New Tab Content -->
+                    <div id="createContent" class="tab-content active p-6">
+                        <div class="space-y-4">
+                            <div>
+                                <label for="createRequirements" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Describe your HTML application
+                                </label>
+                                <textarea id="createRequirements" rows="8" placeholder="Describe the HTML application you want to create. Be specific about features, styling, and functionality..."
+                                          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white resize-none"></textarea>
+                            </div>
+                            <button id="generateHTML" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i data-lucide="play" class="w-4 h-4 inline mr-2"></i>
+                                Generate HTML
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Modify Existing Tab Content -->
+                    <div id="modifyContent" class="tab-content p-6">
+                        <div class="space-y-4">
+                            <!-- Current HTML Status -->
+                            <div id="currentHtmlStatus" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4 hidden">
+                                <div class="flex items-center">
+                                    <i data-lucide="code" class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2"></i>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-blue-800 dark:text-blue-200">Using Generated HTML</h4>
+                                        <p class="text-xs text-blue-600 dark:text-blue-400">Modifying the currently generated HTML application</p>
+                                    </div>
+                                    <button id="clearCurrentHtml" class="ml-auto text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200">
+                                        <i data-lucide="x" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="uploadSection">
+                                <label for="htmlFile" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Upload HTML File
+                                </label>
+                                <div class="mt-1 flex justify-center px-6 pt-4 pb-4 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md hover:border-gray-400 dark:hover:border-gray-500">
+                                    <div class="space-y-1 text-center">
+                                        <i data-lucide="upload" class="mx-auto h-8 w-8 text-gray-400"></i>
+                                        <div class="flex text-sm text-gray-600 dark:text-gray-400">
+                                            <label for="htmlFile" class="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 dark:focus-within:ring-offset-gray-800">
+                                                <span>Upload a file</span>
+                                                <input id="htmlFile" name="htmlFile" type="file" accept=".html" class="sr-only">
+                                            </label>
+                                            <p class="pl-1">or drag and drop</p>
+                                        </div>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">HTML files only</p>
+                                    </div>
+                                </div>
+                                <div id="uploadedFile" class="mt-2 hidden">
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                                        <i data-lucide="file" class="w-4 h-4 inline mr-1"></i>
+                                        <span id="fileName"></span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="modifyInstructions" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    Modification Instructions
+                                </label>
+                                <textarea id="modifyInstructions" rows="4" placeholder="Describe what changes you want to make to the HTML file..."
+                                          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white resize-none"></textarea>
+                            </div>
+                            <button id="applyChanges" class="w-full px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-2"></i>
+                                Apply Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Stream Display -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex-1 flex flex-col min-h-0 max-h-[50vh]">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Live Stream</h3>
+                            <div class="flex items-center space-x-2">
+                                <div id="loadingIndicator" class="hidden">
+                                    <i data-lucide="loader" class="w-4 h-4 text-blue-500 loading"></i>
+                                </div>
+                                <button id="stopGeneration" class="hidden px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500">
+                                    <i data-lucide="square" class="w-3 h-3 inline mr-1"></i>
+                                    Stop
+                                </button>
+                                <span id="characterCount" class="text-sm text-gray-500 dark:text-gray-400">0 characters</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 flex-1 min-h-0 overflow-hidden">
+                        <div id="streamOutput" class="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md p-4 h-full overflow-y-auto font-mono text-sm stream-text whitespace-pre-wrap break-words"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Preview and Actions (8 columns on large screens) -->
+            <div class="lg:col-span-8 flex flex-col space-y-6 h-full">
+                <!-- Preview Area -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex-1 flex flex-col min-h-0">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Preview</h3>
+                            <div class="flex items-center space-x-2">
+                                <button id="rawHtmlToggle" class="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">
+                                    Raw HTML
+                                </button>
+                                <button id="livePreviewToggle" class="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-md hover:bg-blue-200 dark:hover:bg-blue-800">
+                                    Live Preview
+                                </button>
+                                <button id="fullscreenPreview" class="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                    <i data-lucide="maximize" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 flex-1 min-h-0">
+                        <div id="previewContainer" class="border border-gray-200 dark:border-gray-700 rounded-md h-full overflow-hidden">
+                            <iframe id="previewFrame" class="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+                            <textarea id="rawHtmlView" class="w-full h-full border-0 p-4 font-mono text-sm bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 resize-none hidden" readonly></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 flex-shrink-0">
+                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                        <button id="modifyThis" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <i data-lucide="edit" class="w-4 h-4 inline mr-2"></i>
+                            Modify This
+                        </button>
+                        <button id="downloadHtml" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i data-lucide="download" class="w-4 h-4 inline mr-2"></i>
+                            Download HTML
+                        </button>
+                        <button id="copyToClipboard" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i data-lucide="copy" class="w-4 h-4 inline mr-2"></i>
+                            Copy to Clipboard
+                        </button>
+                        <button id="clearOutput" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">
+                            <i data-lucide="trash-2" class="w-4 h-4 inline mr-2"></i>
+                            Clear Output
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Fullscreen Modal -->
+    <div id="fullscreenModal" class="fixed inset-0 bg-black z-50 hidden">
+        <div class="flex flex-col h-full">
+            <div class="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-600">
+                <h3 class="text-lg font-medium text-white">Full Screen Preview</h3>
+                <button id="closeFullscreen" class="p-2 text-gray-400 hover:text-white rounded-md hover:bg-gray-700">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-hidden">
+                <iframe id="fullscreenFrame" class="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Modules (Development) -->
+    <script src="js/app.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/stream-renderer.js"></script>
+    <script src="js/html-processor.js"></script>
+    <script src="js/ui-manager.js"></script>
+</body>
+</html>

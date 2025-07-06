@@ -1,2 +1,19 @@
+# Build output
+dist/
+
+# Development server
+.DS_Store
+*.log
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System files
+Thumbs.db
+
+# Project files (if you want to keep these private)
 deepseek_html_generator_todo.md
 CLAUDE.md

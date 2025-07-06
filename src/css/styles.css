@@ -1,0 +1,37 @@
+/* HTMLForge Custom Styles */
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.loading {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.stream-text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.search-replace-block {
+    background-color: #f8fafc;
+    border-left: 4px solid #3b82f6;
+    margin: 1rem 0;
+    padding: 1rem;
+}
+
+.dark .search-replace-block {
+    background-color: #1e293b;
+    border-left-color: #60a5fa;
+}
