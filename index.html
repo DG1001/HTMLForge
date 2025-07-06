@@ -252,10 +252,6 @@
                             <i data-lucide="trash-2" class="w-4 h-4 inline mr-2"></i>
                             Clear Output
                         </button>
-                        <button id="saveToStorage" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <i data-lucide="save" class="w-4 h-4 inline mr-2"></i>
-                            Save to Storage
-                        </button>
                     </div>
                 </div>
             </div>
@@ -865,7 +861,6 @@
                 document.getElementById('downloadHtml').addEventListener('click', () => this.downloadHTML());
                 document.getElementById('copyToClipboard').addEventListener('click', () => this.copyToClipboard());
                 document.getElementById('clearOutput').addEventListener('click', () => this.clearOutput());
-                document.getElementById('saveToStorage').addEventListener('click', () => this.saveToStorage());
 
                 // Load saved API key
                 const savedApiKey = localStorage.getItem('deepseek_api_key');
@@ -1365,15 +1360,58 @@
                     return;
                 }
 
+                // Generate intelligent filename based on HTML content
+                const filename = this.generateIntelligentFilename(currentHtml);
+
                 const blob = new Blob([currentHtml], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'generated.html';
+                a.download = filename;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
+            }
+
+            generateIntelligentFilename(html) {
+                // Extract title from HTML
+                const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+                let appName = '';
+                
+                if (titleMatch && titleMatch[1]) {
+                    appName = titleMatch[1]
+                        .trim()
+                        .toLowerCase()
+                        .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+                        .replace(/\s+/g, '-') // Replace spaces with hyphens
+                        .replace(/-+/g, '-') // Replace multiple hyphens with single
+                        .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+                }
+
+                // If no title or title is generic, try to extract from h1
+                if (!appName || appName === 'document' || appName === 'untitled') {
+                    const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+                    if (h1Match && h1Match[1]) {
+                        appName = h1Match[1]
+                            .trim()
+                            .toLowerCase()
+                            .replace(/[^a-z0-9\s-]/g, '')
+                            .replace(/\s+/g, '-')
+                            .replace(/-+/g, '-')
+                            .replace(/^-|-$/g, '');
+                    }
+                }
+
+                // Generate timestamp
+                const timestamp = new Date().toISOString().replace(/[:]/g, '-').split('.')[0];
+
+                // Create filename
+                if (appName && appName.length > 0) {
+                    return `${appName}-${timestamp}.html`;
+                } else {
+                    return `htmlforge-app-${timestamp}.html`;
+                }
             }
 
             async copyToClipboard() {
@@ -1401,23 +1439,6 @@
                 // Button will be disabled by streamRenderer.clear()
             }
 
-            saveToStorage() {
-                if (!currentHtml) {
-                    alert('No HTML to save');
-                    return;
-                }
-
-                const timestamp = new Date().toISOString();
-                const key = `deepseek_html_${timestamp}`;
-                
-                try {
-                    localStorage.setItem(key, currentHtml);
-                    alert('HTML saved to browser storage');
-                } catch (error) {
-                    console.error('Save failed:', error);
-                    alert('Failed to save to storage');
-                }
-            }
         }
 
         // Initialize application
