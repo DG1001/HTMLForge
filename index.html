@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DeepSeek HTML Generator</title>
+    <meta name="description" content="HTMLForge - Forge HTML applications with AI assistance. Create and modify single-page web applications using DeepSeek AI.">
+    <title>HTMLForge</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script>
@@ -50,8 +51,8 @@
             <div class="flex justify-between items-center py-6">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">DeepSeek HTML Generator</h1>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">Generate and modify HTML with AI assistance</p>
+                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">HTMLForge</h1>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Forge HTML applications with AI assistance</p>
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
@@ -128,7 +129,21 @@
                     <!-- Modify Existing Tab Content -->
                     <div id="modifyContent" class="tab-content p-6">
                         <div class="space-y-4">
-                            <div>
+                            <!-- Current HTML Status -->
+                            <div id="currentHtmlStatus" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4 hidden">
+                                <div class="flex items-center">
+                                    <i data-lucide="code" class="w-5 h-5 text-blue-600 dark:text-blue-400 mr-2"></i>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-blue-800 dark:text-blue-200">Using Generated HTML</h4>
+                                        <p class="text-xs text-blue-600 dark:text-blue-400">Modifying the currently generated HTML application</p>
+                                    </div>
+                                    <button id="clearCurrentHtml" class="ml-auto text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200">
+                                        <i data-lucide="x" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="uploadSection">
                                 <label for="htmlFile" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     Upload HTML File
                                 </label>
@@ -216,7 +231,11 @@
 
                 <!-- Action Buttons -->
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 flex-shrink-0">
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                        <button id="modifyThis" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            <i data-lucide="edit" class="w-4 h-4 inline mr-2"></i>
+                            Modify This
+                        </button>
                         <button id="downloadHtml" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed">
                             <i data-lucide="download" class="w-4 h-4 inline mr-2"></i>
                             Download HTML
@@ -261,6 +280,7 @@
         // Global variables
         let currentHtml = '';
         let currentUploadedHtml = '';
+        let usingGeneratedHtml = false; // Track if we're modifying generated HTML
         let apiClient = null;
         let streamRenderer = null;
         let htmlProcessor = null;
@@ -527,12 +547,15 @@
                     currentHtmlLength: currentHtml ? currentHtml.length : 0
                 });
                 
-                // Enable fullscreen button if we have HTML content
+                // Enable fullscreen and modify buttons if we have HTML content
                 const fullscreenButton = document.getElementById('fullscreenPreview');
+                const modifyButton = document.getElementById('modifyThis');
                 if (currentHtml && currentHtml.trim()) {
                     fullscreenButton.disabled = false;
+                    modifyButton.disabled = false;
                 } else {
                     fullscreenButton.disabled = true;
+                    modifyButton.disabled = true;
                 }
                 
                 // Final preview update
@@ -625,8 +648,9 @@
                 this.updateCharacterCount();
                 document.getElementById('rawHtmlView').value = '';
                 
-                // Disable fullscreen button when cleared
+                // Disable fullscreen and modify buttons when cleared
                 document.getElementById('fullscreenPreview').disabled = true;
+                document.getElementById('modifyThis').disabled = true;
                 
                 // Clear preview
                 const previewFrame = document.getElementById('previewFrame');
@@ -767,6 +791,8 @@
                 document.getElementById('testConnection').addEventListener('click', () => this.testConnection());
                 document.getElementById('generateHTML').addEventListener('click', () => this.generateHTML());
                 document.getElementById('applyChanges').addEventListener('click', () => this.applyChanges());
+                document.getElementById('modifyThis').addEventListener('click', () => this.modifyCurrentHtml());
+                document.getElementById('clearCurrentHtml').addEventListener('click', () => this.clearCurrentHtmlMode());
                 document.getElementById('downloadHtml').addEventListener('click', () => this.downloadHTML());
                 document.getElementById('copyToClipboard').addEventListener('click', () => this.copyToClipboard());
                 document.getElementById('clearOutput').addEventListener('click', () => this.clearOutput());
@@ -1036,6 +1062,9 @@
             handleFileUpload(event) {
                 const file = event.target.files[0];
                 if (file && file.type === 'text/html') {
+                    // Clear current HTML mode when uploading file
+                    this.clearCurrentHtmlMode();
+                    
                     const reader = new FileReader();
                     reader.onload = (e) => {
                         currentUploadedHtml = e.target.result;
@@ -1044,6 +1073,49 @@
                     };
                     reader.readAsText(file);
                 }
+            }
+
+            modifyCurrentHtml() {
+                if (!currentHtml || !currentHtml.trim()) {
+                    alert('No generated HTML to modify');
+                    return;
+                }
+
+                // Set up modify mode with current HTML
+                usingGeneratedHtml = true;
+                currentUploadedHtml = currentHtml;
+                
+                // Switch to modify tab
+                this.switchTab('modify');
+                
+                // Show current HTML status
+                document.getElementById('currentHtmlStatus').classList.remove('hidden');
+                document.getElementById('uploadSection').style.display = 'none';
+                
+                // Clear uploaded file display
+                document.getElementById('uploadedFile').classList.add('hidden');
+                document.getElementById('htmlFile').value = '';
+                
+                // Focus on modification instructions
+                document.getElementById('modifyInstructions').focus();
+                
+                // Re-initialize lucide icons
+                lucide.createIcons();
+            }
+
+            clearCurrentHtmlMode() {
+                usingGeneratedHtml = false;
+                currentUploadedHtml = '';
+                
+                // Hide current HTML status
+                document.getElementById('currentHtmlStatus').classList.add('hidden');
+                document.getElementById('uploadSection').style.display = 'block';
+                
+                // Clear modification instructions
+                document.getElementById('modifyInstructions').value = '';
+                
+                // Re-initialize lucide icons
+                lucide.createIcons();
             }
 
             updateConnectionStatus(isConnected) {
@@ -1235,6 +1307,10 @@
             clearOutput() {
                 currentHtml = '';
                 streamRenderer.clear();
+                // Clear modify mode if using generated HTML
+                if (usingGeneratedHtml) {
+                    this.clearCurrentHtmlMode();
+                }
                 // Button will be disabled by streamRenderer.clear()
             }
 
@@ -1267,7 +1343,7 @@
             htmlProcessor = new HTMLProcessor();
             uiManager = new UIManager();
             
-            console.log('DeepSeek HTML Generator initialized');
+            console.log('HTMLForge initialized - Ready to forge amazing HTML applications!');
         });
     </script>
 </body>
