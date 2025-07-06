@@ -18,7 +18,7 @@ sed -i 's|{{CSS_CONTENT}}|'"$(sed 's/$/\\n/' src/css/styles.css | tr -d '\n')"'|
 
 # Add the body HTML (without the JavaScript placeholder)
 echo "🏗️ Adding HTML body structure..."
-sed '1,/<body/d; /{{JAVASCRIPT_CONTENT}}/,$d' src/html/body.html >> dist/index.html
+sed '/{{JAVASCRIPT_CONTENT}}/,$d' src/html/body.html >> dist/index.html
 
 # Add JavaScript content
 echo "⚡ Adding JavaScript modules..."
