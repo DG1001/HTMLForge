@@ -195,6 +195,10 @@
                                     <i data-lucide="square" class="w-3 h-3 inline mr-1"></i>
                                     Stop
                                 </button>
+                                <button id="continueGeneration" class="hidden px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <i data-lucide="play" class="w-3 h-3 inline mr-1"></i>
+                                    Continue
+                                </button>
                                 <span id="characterCount" class="text-sm text-gray-500 dark:text-gray-400">0 characters</span>
                             </div>
                         </div>
@@ -298,6 +302,9 @@
                 this.baseUrl = 'https://api.deepseek.com/v1/chat/completions';
                 this.isConnected = false;
                 this.currentAbortController = null;
+                this.currentMessages = null;
+                this.currentCallbacks = null;
+                this.continuationCount = 0;
             }
 
             setApiKey(key) {
@@ -337,10 +344,37 @@
                 }
             }
 
-            async streamRequest(messages, onChunk, onComplete, onError) {
+            async continueStream() {
+                if (!this.currentMessages || !this.currentCallbacks) {
+                    console.error('No active stream to continue');
+                    return;
+                }
+                
+                this.continuationCount++;
+                
+                // Add continue message
+                const continueMessages = [...this.currentMessages];
+                continueMessages.push({ role: 'user', content: 'continue' });
+                
+                // Hide continue button and show loading
+                document.getElementById('continueGeneration').classList.add('hidden');
+                document.getElementById('loadingIndicator').classList.remove('hidden');
+                document.getElementById('stopGeneration').classList.remove('hidden');
+                
+                // Continue the stream
+                await this.streamRequest(continueMessages, this.currentCallbacks.onChunk, this.currentCallbacks.onComplete, this.currentCallbacks.onError, true);
+            }
+
+            async streamRequest(messages, onChunk, onComplete, onError, isManualContinue = false) {
+                if (!isManualContinue) {
+                    // Reset for new request
+                    this.continuationCount = 0;
+                    this.currentMessages = [...messages];
+                    this.currentCallbacks = { onChunk, onComplete, onError };
+                }
+                
                 let fullContent = '';
-                let conversationMessages = [...messages];
-                let continuationCount = 0;
+                let conversationMessages = isManualContinue ? [...this.currentMessages] : [...messages];
                 const maxContinuations = 3; // Prevent infinite loops
                 
                 const makeRequest = async (isRetry = false) => {
@@ -385,20 +419,17 @@
                                 if (line.startsWith('data: ')) {
                                     const data = line.slice(6);
                                     if (data === '[DONE]') {
+                                        // Store current content for potential manual continuation
+                                        this.currentMessages = [...conversationMessages];
+                                        this.currentMessages.push({ role: 'assistant', content: fullContent });
+                                        
                                         // Check if output seems incomplete and we haven't exceeded max continuations
-                                        if (this.isIncompleteOutput(fullContent) && continuationCount < maxContinuations) {
-                                            // Add assistant message and continue
-                                            conversationMessages.push({ role: 'assistant', content: fullContent });
-                                            conversationMessages.push({ role: 'user', content: 'continue' });
+                                        if (this.isIncompleteOutput(fullContent) && this.continuationCount < maxContinuations) {
+                                            // Show manual continue option instead of auto-continuing
+                                            onChunk(`\n\n[Generation may be incomplete. Use "Continue" button if you need more content.]\n\n`);
                                             
-                                            continuationCount++;
-                                            
-                                            // Show continuation indicator
-                                            onChunk(`\n\n[Auto-continuing generation... (${continuationCount}/${maxContinuations})]\n\n`);
-                                            
-                                            // Continue after a brief delay
-                                            setTimeout(() => makeRequest(true), 1000);
-                                            return;
+                                            // Show continue button
+                                            document.getElementById('continueGeneration').classList.remove('hidden');
                                         }
                                         
                                         onComplete();
@@ -443,9 +474,7 @@
                     /\[continued\]/i,
                     /\[continue\]/i,
                     /\(continued\)/i,
-                    /…$/,
-                    /\.\.\./,
-                    /continues?\.\.\.$/i
+                    /…$/
                 ];
 
                 for (const marker of continuationMarkers) {
@@ -454,10 +483,29 @@
                     }
                 }
 
-                // For HTML content, check structural completeness
+                // Check if content ends abruptly (incomplete sentence or tag)
+                const lastChar = trimmedContent.charAt(trimmedContent.length - 1);
+                if (lastChar === '<' || lastChar === '&') {
+                    return true;
+                }
+
+                // Check for incomplete tags at the end
+                const incompleteTagPattern = /<[^>]*$/;
+                if (incompleteTagPattern.test(trimmedContent)) {
+                    return true;
+                }
+
+                // For HTML generation mode, be more selective
                 if (trimmedContent.includes('<!DOCTYPE') || trimmedContent.includes('<html')) {
-                    // Check if major HTML structures are complete
-                    const hasDoctype = /<!DOCTYPE\s+html\s*>/i.test(trimmedContent);
+                    // If we have a complete HTML document, don't continue even if there are explanations
+                    const completeHtmlPattern = /<!DOCTYPE\s+html[\s\S]*?<\/html\s*>/gi;
+                    const htmlMatches = trimmedContent.match(completeHtmlPattern);
+                    if (htmlMatches && htmlMatches.length > 0) {
+                        console.log('Found complete HTML document, not continuing');
+                        return false; // Don't continue if we have complete HTML
+                    }
+
+                    // Only continue if HTML is structurally incomplete
                     const hasHtmlOpen = /<html[^>]*>/i.test(trimmedContent);
                     const hasHtmlClose = /<\/html\s*>/i.test(trimmedContent);
                     const hasHeadOpen = /<head[^>]*>/i.test(trimmedContent);
@@ -465,7 +513,7 @@
                     const hasBodyOpen = /<body[^>]*>/i.test(trimmedContent);
                     const hasBodyClose = /<\/body\s*>/i.test(trimmedContent);
 
-                    // If HTML document started but not properly closed
+                    // Only continue if major structures are incomplete
                     if (hasHtmlOpen && !hasHtmlClose) {
                         return true;
                     }
@@ -490,16 +538,22 @@
                     }
                 }
 
-                // Check if content ends abruptly (incomplete sentence or tag)
-                const lastChar = trimmedContent.charAt(trimmedContent.length - 1);
-                if (lastChar === '<' || lastChar === '&') {
-                    return true;
-                }
-
-                // Check for incomplete tags at the end
-                const incompleteTagPattern = /<[^>]*$/;
-                if (incompleteTagPattern.test(trimmedContent)) {
-                    return true;
+                // For SEARCH/REPLACE blocks, check if they're complete
+                if (trimmedContent.includes('<<<<<<< SEARCH') || trimmedContent.includes('>>>>>>> REPLACE')) {
+                    // Check for incomplete SEARCH/REPLACE blocks
+                    const searchBlocks = (trimmedContent.match(/<<<<<<< SEARCH/g) || []).length;
+                    const replaceBlocks = (trimmedContent.match(/>>>>>>> REPLACE/g) || []).length;
+                    
+                    if (searchBlocks > replaceBlocks) {
+                        console.log('Found incomplete SEARCH/REPLACE block');
+                        return true;
+                    }
+                    
+                    // If we have complete SEARCH/REPLACE blocks, don't continue for explanations
+                    if (searchBlocks > 0 && searchBlocks === replaceBlocks) {
+                        console.log('Found complete SEARCH/REPLACE blocks, not continuing');
+                        return false;
+                    }
                 }
 
                 return false;
@@ -551,6 +605,7 @@
                 this.isStreaming = false;
                 document.getElementById('loadingIndicator').classList.add('hidden');
                 document.getElementById('stopGeneration').classList.add('hidden');
+                // Note: continueGeneration button visibility is managed by the API client
                 
                 // Clear any pending preview updates
                 if (this.previewUpdateTimeout) {
@@ -695,6 +750,7 @@
                 // Disable fullscreen and modify buttons when cleared
                 document.getElementById('fullscreenPreview').disabled = true;
                 document.getElementById('modifyThis').disabled = true;
+                document.getElementById('continueGeneration').classList.add('hidden');
                 
                 // Clear preview
                 const previewFrame = document.getElementById('previewFrame');
@@ -838,6 +894,7 @@
                 document.getElementById('modifyThis').addEventListener('click', () => this.modifyCurrentHtml());
                 document.getElementById('clearCurrentHtml').addEventListener('click', () => this.clearCurrentHtmlMode());
                 document.getElementById('stopGeneration').addEventListener('click', () => this.stopGeneration());
+                document.getElementById('continueGeneration').addEventListener('click', () => this.continueGeneration());
                 document.getElementById('downloadHtml').addEventListener('click', () => this.downloadHTML());
                 document.getElementById('copyToClipboard').addEventListener('click', () => this.copyToClipboard());
                 document.getElementById('clearOutput').addEventListener('click', () => this.clearOutput());
@@ -1177,6 +1234,16 @@
                 // Re-enable generate/apply buttons
                 document.getElementById('generateHTML').disabled = false;
                 document.getElementById('applyChanges').disabled = false;
+                
+                // Hide continue button
+                document.getElementById('continueGeneration').classList.add('hidden');
+            }
+
+            async continueGeneration() {
+                if (apiClient) {
+                    console.log('Continuing generation by user request');
+                    await apiClient.continueStream();
+                }
             }
 
             updateConnectionStatus(isConnected) {
